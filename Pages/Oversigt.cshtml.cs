@@ -19,6 +19,7 @@ namespace Tidsregistrering.Pages
         public List<Registrering> AlleRegistreringer { get; set; } = new();
         public List<string> Afdelinger { get; set; } = new();
         public List<string> Brugere { get; set; } = new();
+        public bool IsAdmin { get; set; }
 
         // Filter properties
         [BindProperty(SupportsGet = true)]
@@ -58,6 +59,95 @@ namespace Tidsregistrering.Pages
         public async Task OnGetAsync()
         {
             await LoadDataAsync();
+            // Tjek om brugeren er administrator
+            IsAdmin = await AdminConfig.IsAdminAsync(User, _context);
+        }
+
+        public async Task<IActionResult> OnPostAdminEditAsync(int adminEditId, DateTime? adminEditDatoUdført,
+    int adminEditMinutter, string adminEditAfdeling, string? adminEditSagsnummer, string? adminEditBemærkninger)
+        {
+            // Tjek om brugeren er administrator
+            if (!await AdminConfig.IsAdminAsync(User, _context))
+            {
+                TempData["Error"] = "Du har ikke rettigheder til at udføre denne handling.";
+                return RedirectToPage();
+            }
+
+            try
+            {
+                var registrering = await _context.Registreringer.FindAsync(adminEditId);
+                if (registrering == null)
+                {
+                    TempData["Error"] = "Registreringen blev ikke fundet.";
+                    return RedirectToPage();
+                }
+
+                // Gem original data til audit log
+                var originalData = $"Original: {registrering.Minutter}min, {registrering.Afdeling}, {registrering.Sagsnummer ?? "ingen sag"}, {registrering.Bemærkninger ?? "ingen bem."}";
+
+                // Opdater registreringen
+                registrering.Minutter = adminEditMinutter;
+                registrering.Afdeling = adminEditAfdeling;
+                registrering.Sagsnummer = string.IsNullOrWhiteSpace(adminEditSagsnummer) ? null : adminEditSagsnummer.Trim();
+                registrering.Bemærkninger = string.IsNullOrWhiteSpace(adminEditBemærkninger) ? null : adminEditBemærkninger.Trim();
+                registrering.DatoUdført = adminEditDatoUdført;
+
+                await _context.SaveChangesAsync();
+
+                var adminUser = User.Identity?.Name ?? "Ukendt admin";
+                TempData["Success"] = $"Registrering #{adminEditId} (tilhører {registrering.FuldeNavn}) blev opdateret af administrator {adminUser}.";
+
+                // Log til console (kan senere flyttes til database audit log)
+                Console.WriteLine($"ADMIN EDIT: {adminUser} ændrede registrering #{adminEditId} for {registrering.Brugernavn}. {originalData}");
+            }
+            catch (Exception ex)
+            {
+                TempData["Error"] = $"Fejl ved opdatering af registrering: {ex.Message}";
+                Console.WriteLine($"Admin edit error: {ex}");
+            }
+
+            return RedirectToPage();
+        }
+
+        public async Task<IActionResult> OnPostAdminDeleteAsync(int adminDeleteId)
+        {
+            // Tjek om brugeren er administrator
+            if (!await AdminConfig.IsAdminAsync(User, _context))
+            {
+                TempData["Error"] = "Du har ikke rettigheder til at udføre denne handling.";
+                return RedirectToPage();
+            }
+
+            try
+            {
+                var registrering = await _context.Registreringer.FindAsync(adminDeleteId);
+                if (registrering == null)
+                {
+                    TempData["Error"] = "Registreringen blev ikke fundet.";
+                    return RedirectToPage();
+                }
+
+                // Gem data til audit log før sletning
+                var deletedData = $"Slettet: ID#{registrering.Id}, {registrering.FuldeNavn} ({registrering.Brugernavn}), {registrering.Minutter}min, {registrering.Afdeling}, {registrering.Dato:dd-MM-yyyy}";
+
+                var ejersNavn = registrering.FuldeNavn ?? registrering.Brugernavn;
+
+                _context.Registreringer.Remove(registrering);
+                await _context.SaveChangesAsync();
+
+                var adminUser = User.Identity?.Name ?? "Ukendt admin";
+                TempData["Success"] = $"Registrering #{adminDeleteId} (tilhørte {ejersNavn}) blev slettet af administrator {adminUser}.";
+
+                // Log til console (kan senere flyttes til database audit log)
+                Console.WriteLine($"ADMIN DELETE: {adminUser} slettede registrering. {deletedData}");
+            }
+            catch (Exception ex)
+            {
+                TempData["Error"] = $"Fejl ved sletning af registrering: {ex.Message}";
+                Console.WriteLine($"Admin delete error: {ex}");
+            }
+
+            return RedirectToPage();
         }
 
         private async Task LoadDataAsync()

@@ -39,6 +39,7 @@
                                     <th><i class="bi bi-calendar-check"></i> Arbejde Udført</th>
                                     <th><i class="bi bi-clock"></i> Tid</th>
                                     <th><i class="bi bi-building"></i> Afdeling</th>
+                                    <th><i class="bi bi-tag"></i> Sagsnummer</th>
                                     <th><i class="bi bi-chat-left-text"></i> Bemærkninger</th>
                                     <th><i class="bi bi-gear"></i> Handlinger</th>
                                 </tr>
@@ -47,71 +48,83 @@
                                 @foreach (var reg in Model.Registreringer)
                                 {
                                     <tr>
-                                        <td class="fw-bold text-primary">@reg.Id</td>
-                                        <td>
-                                            <i class="bi bi-calendar-event"></i>
-                                            @reg.Dato.ToString("dd-MM-yyyy HH:mm")
-                                        </td>
-                                        <td>
-                                            @if (reg.DatoUdført.HasValue)
-                                            {
-                                                <i class="bi bi-calendar-check text-success"></i>
-                                                @reg.DatoUdført.Value.ToString("dd-MM-yyyy")
-                                            }
-                                            else
-                                            {
-                                                <span class="text-muted">-</span>
-                                            }
-                                        </td>
-                                        <td>
-                                            @{
-                                                var timer = reg.Minutter / 60;
-                                                var min = reg.Minutter % 60;
-                                            }
-                                            <span class="badge bg-info">
-                                                @if (timer > 0)
-                                                {
-                                                    @($"{timer}t {min}m")
-                                                }
-                                                else
-                                                {
-                                                    @($"{min}m")
-                                                }
-                                            </span>
-                                            <small class="text-muted">(@reg.Minutter min)</small>
-                                        </td>
-                                        <td>
-                                            <span class="badge bg-secondary text-wrap" style="max-width: 200px;">
-                                                @reg.Afdeling
-                                            </span>
-                                        </td>
-                                        <td>
-                                            @if (!string.IsNullOrEmpty(reg.Bemærkninger))
-                                            {
-                                                <div class="text-truncate" style="max-width: 250px;"
-                                                     title="@reg.Bemærkninger">
-                                                    @reg.Bemærkninger
-                                                </div>
-                                            }
-                                            else
-                                            {
-                                                <em class="text-muted">Ingen bemærkninger</em>
-                                            }
-                                        </td>
-                                        <td>
-                                            <div class="btn-group btn-group-sm">
-                                                <button type="button" class="btn btn-outline-primary"
-                                                        onclick="editRegistrering(@reg.Id)"
-                                                        title="Rediger">
-                                                    <i class="bi bi-pencil"></i>
-                                                </button>
-                                                <button type="button" class="btn btn-outline-danger"
-                                                        onclick="confirmDelete(@reg.Id)"
-                                                        title="Slet">
-                                                    <i class="bi bi-trash"></i>
-                                                </button>
-                                            </div>
-                                        </td>
+<td class="fw-bold text-primary">@reg.Id</td>
+<td>
+    <i class="bi bi-calendar-event"></i>
+    @reg.Dato.ToString("dd-MM-yyyy HH:mm")
+</td>
+<td>
+    @if (reg.DatoUdført.HasValue)
+    {
+        <i class="bi bi-calendar-check text-success"></i>
+        @reg.DatoUdført.Value.ToString("dd-MM-yyyy")
+    }
+    else
+    {
+        <span class="text-muted">-</span>
+    }
+</td>
+<td>
+    @{
+        var timer = reg.Minutter / 60;
+        var min = reg.Minutter % 60;
+    }
+    <span class="badge bg-info">
+        @if (timer > 0)
+        {
+            @($"{timer}t {min}m")
+        }
+        else
+        {
+            @($"{min}m")
+        }
+    </span>
+    <small class="text-muted">(@reg.Minutter min)</small>
+</td>
+<td>
+    <span class="badge bg-secondary text-wrap" style="max-width: 200px;">
+        @reg.Afdeling
+    </span>
+</td>
+<td>
+    @if (!string.IsNullOrEmpty(reg.Sagsnummer))
+    {
+        <span class="badge bg-info">
+            <i class="bi bi-tag"></i> @reg.Sagsnummer
+        </span>
+    }
+    else
+    {
+        <span class="text-muted">-</span>
+    }
+</td>
+<td>
+    @if (!string.IsNullOrEmpty(reg.Bemærkninger))
+    {
+        <div class="text-truncate" style="max-width: 250px;"
+             title="@reg.Bemærkninger">
+            @reg.Bemærkninger
+        </div>
+    }
+    else
+    {
+        <em class="text-muted">Ingen bemærkninger</em>
+    }
+</td>
+<td>
+    <div class="btn-group btn-group-sm">
+        <button type="button" class="btn btn-outline-primary"
+                onclick="editRegistrering(@reg.Id)"
+                title="Rediger">
+            <i class="bi bi-pencil"></i>
+        </button>
+        <button type="button" class="btn btn-outline-danger"
+                onclick="confirmDelete(@reg.Id)"
+                title="Slet">
+            <i class="bi bi-trash"></i>
+        </button>
+    </div>
+</td>
                                     </tr>
                                 }
                             </tbody>
@@ -264,14 +277,14 @@ else
         var registreringer = [
             @foreach (var reg in Model.Registreringer)
             {
-                    @Html.Raw("{")
-                    @Html.Raw($"id: {reg.Id},")
-                    @Html.Raw($"minutter: {reg.Minutter},")
-                    @Html.Raw($"afdeling: '{Html.Raw(reg.Afdeling.Replace("'", "\\'"))}',")
-                    @Html.Raw($"bemærkninger: '{Html.Raw((reg.Bemærkninger ?? "").Replace("'", "\\'").Replace("\n", "\\n"))}',")
-                    @Html.Raw($"datoUdført: '{(reg.DatoUdført?.ToString("yyyy-MM-dd") ?? "")}',")
-                    @Html.Raw($"sagsnummer: '{Html.Raw((reg.Sagsnummer ?? "").Replace("'", "\\'"))}'")
-                    @Html.Raw("},")
+                        @Html.Raw("{")
+                        @Html.Raw($"id: {reg.Id},")
+                        @Html.Raw($"minutter: {reg.Minutter},")
+                        @Html.Raw($"afdeling: '{Html.Raw(reg.Afdeling.Replace("'", "\\'"))}',")
+                        @Html.Raw($"bemærkninger: '{Html.Raw((reg.Bemærkninger ?? "").Replace("'", "\\'").Replace("\n", "\\n"))}',")
+                        @Html.Raw($"datoUdført: '{(reg.DatoUdført?.ToString("yyyy-MM-dd") ?? "")}',")
+                        @Html.Raw($"sagsnummer: '{Html.Raw((reg.Sagsnummer ?? "").Replace("'", "\\'"))}'")
+                        @Html.Raw("},")
             }
         ];
 

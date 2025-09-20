@@ -217,6 +217,10 @@
                                     <th><i class="bi bi-calendar-check"></i> Arbejde Udført</th>
                                     <th><i class="bi bi-chat-left-text"></i> Bemærkninger</th>
                                     <th><i class="bi bi-info-circle"></i> Detaljer</th>
+                                    @if (Model.IsAdmin)
+                                    {
+                                        <th><i class="bi bi-gear-fill"></i> Admin Handlinger</th>
+                                    }
                                 </tr>
                             </thead>
                             <tbody>
@@ -309,6 +313,23 @@
                                                 </button>
                                             </div>
                                         </td>
+                                        @if (Model.IsAdmin)
+                                        {
+                                            <td>
+                                                <div class="btn-group-vertical btn-group-sm" style="width: 100%;">
+                                                    <button type="button" class="btn btn-outline-primary btn-sm mb-1"
+                                                            onclick="adminEditRegistrering(@reg.Id)"
+                                                            title="Rediger som administrator">
+                                                        <i class="bi bi-pencil"></i> Rediger
+                                                    </button>
+                                                    <button type="button" class="btn btn-outline-danger btn-sm"
+                                                            onclick="adminDeleteRegistrering(@reg.Id, '@Html.Raw((reg.FuldeNavn ?? "Ukendt").Replace("'", "\\'"))')"
+                                                            title="Slet som administrator">
+                                                        <i class="bi bi-trash"></i> Slet
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        }
                                     </tr>
                                 }
                             </tbody>
@@ -358,6 +379,107 @@ else
         </div>
     </div>
 </div>
+
+<!-- Admin Rediger Modal (kun for administratorer) -->
+@if (Model.IsAdmin)
+{
+    <div class="modal fade" id="adminEditModal" tabindex="-1" aria-labelledby="adminEditModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-warning text-dark">
+                    <h5 class="modal-title" id="adminEditModalLabel">
+                        <i class="bi bi-shield-exclamation"></i> Administrator: Rediger Registrering
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form method="post" asp-page-handler="AdminEdit" id="adminEditForm">
+                    <div class="modal-body">
+                        <div class="alert alert-warning">
+                            <i class="bi bi-exclamation-triangle"></i>
+                            <strong>Administrator advarsel:</strong> Du redigerer en registrering som ikke tilhører dig.
+                        </div>
+
+                        <input type="hidden" name="adminEditId" id="adminEditFormId" />
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="adminEditBrugernavn" class="form-label">
+                                        <i class="bi bi-person"></i> Ejer af registrering
+                                    </label>
+                                    <input type="text" class="form-control" id="adminEditBrugernavn" readonly
+                                           style="background-color: #f8f9fa;" />
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="adminEditDatoUdført" class="form-label">
+                                        <i class="bi bi-calendar3"></i> Dato for udført arbejde
+                                    </label>
+                                    <input type="date" class="form-control" name="adminEditDatoUdført" id="adminEditDatoUdført" />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="adminEditMinutter" class="form-label">
+                                        <i class="bi bi-clock"></i> Tid brugt (minutter) *
+                                    </label>
+                                    <input type="number" class="form-control" name="adminEditMinutter" id="adminEditMinutter" min="1" required />
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="adminEditAfdeling" class="form-label">
+                                        <i class="bi bi-building"></i> Afdeling *
+                                    </label>
+                                    <select class="form-select" name="adminEditAfdeling" id="adminEditAfdeling" required>
+                                        <option value="">Vælg afdeling...</option>
+                                        @foreach (var afdeling in Model.Afdelinger)
+                                        {
+                                            <option value="@afdeling">@afdeling</option>
+                                        }
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="adminEditSagsnummer" class="form-label">
+                                <i class="bi bi-tag"></i> ESDH-Sagsnummer
+                            </label>
+                            <input type="text" class="form-control" name="adminEditSagsnummer" id="adminEditSagsnummer"
+                                   maxlength="60" placeholder="fx SAG2025-123 (valgfrit)" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="adminEditBemærkninger" class="form-label">
+                                <i class="bi bi-chat-left-text"></i> Bemærkninger
+                            </label>
+                            <textarea class="form-control" name="adminEditBemærkninger" id="adminEditBemærkninger"
+                                  rows="4" placeholder="Beskrivelse af arbejdet..."></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                            <i class="bi bi-x-circle"></i> Annuller
+                        </button>
+                        <button type="submit" class="btn btn-warning">
+                            <i class="bi bi-shield-check"></i> Gem som Administrator
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin Slet Form -->
+    <form method="post" asp-page-handler="AdminDelete" style="display: none;" id="adminDeleteForm">
+        <input type="hidden" name="adminDeleteId" id="adminDeleteId" />
+    </form>
+}
 
 @section Scripts {
     <script>
@@ -474,6 +596,40 @@ else
 
             var modal = new bootstrap.Modal(document.getElementById('detailsModal'));
             modal.show();
+        }
+                // Admin funktioner (kun for administratorer)
+        @if (Model.IsAdmin)
+        {
+                <text>
+                function adminEditRegistrering(id) {
+                    // Find registreringen
+                    var reg = registreringer.find(r => r.id === id);
+                    if (!reg) {
+                        alert('Kunne ikke finde registrering!');
+                        return;
+                    }
+
+                    // Udfyld admin modal formularen
+                    document.getElementById('adminEditFormId').value = reg.id;
+                    document.getElementById('adminEditBrugernavn').value = reg.fuldeNavn + ' (' + reg.brugernavn + ')';
+                    document.getElementById('adminEditMinutter').value = reg.minutter;
+                    document.getElementById('adminEditAfdeling').value = reg.afdeling;
+                    document.getElementById('adminEditBemærkninger').value = reg.bemærkninger;
+                    document.getElementById('adminEditDatoUdført').value = reg.datoUdført;
+                    document.getElementById('adminEditSagsnummer').value = reg.sagsnummer;
+
+                    // Vis admin modal
+                    var modal = new bootstrap.Modal(document.getElementById('adminEditModal'));
+                    modal.show();
+                }
+
+                function adminDeleteRegistrering(id, fuldeNavn) {
+                    if (confirm(`ADMINISTRATOR ADVARSEL:\n\nDu er ved at slette en registrering som tilhører: ${fuldeNavn}\n\nEr du sikker på at du vil fortsætte?`)) {
+                        document.getElementById('adminDeleteId').value = id;
+                        document.getElementById('adminDeleteForm').submit();
+                    }
+                }
+                </text>
         }
     </script>
 }
