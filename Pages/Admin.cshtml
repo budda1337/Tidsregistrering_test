@@ -1,0 +1,860 @@
+﻿@page
+@model Tidsregistrering.Pages.AdminModel
+@{
+    ViewData["Title"] = "Administration - Tidsregistrering";
+}
+
+<div class="row">
+    <div class="col-12">
+        <h2><i class="bi bi-gear-fill"></i> Administration</h2>
+        <p class="text-muted">Administrer afdelinger og masseændringer i tidsregistreringssystemet</p>
+        <!-- Administratorer Tab -->
+        <div class="tab-pane fade show active" id="admin-users" role="tabpanel">
+            <div class="row">
+                <!-- Tilføj Administrator -->
+                <div class="col-lg-4">
+                    <div class="card">
+                        <div class="card-header bg-success text-white">
+                            <h5 class="mb-0">
+                                <i class="bi bi-person-plus"></i> Tilføj Administrator
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <form method="post" asp-page-handler="AddAdministrator">
+                                <div class="mb-3">
+                                    <label for="adminBrugernavn" class="form-label">
+                                        <i class="bi bi-person"></i> Brugernavn *
+                                    </label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">ibk\</span>
+                                        <input type="text" class="form-control" name="brugernavn" id="adminBrugernavn"
+                                               required placeholder="brugernavn" onblur="lookupUser(this.value)">
+                                    </div>
+                                    <div class="form-text">Indtast kun brugernavnet - ibk\ tilføjes automatisk</div>
+                                    <div id="userLookupResult" class="mt-2"></div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="adminFuldeNavn" class="form-label">
+                                        <i class="bi bi-person-badge"></i> Fulde Navn
+                                    </label>
+                                    <input type="text" class="form-control" name="fuldeNavn" id="adminFuldeNavn"
+                                           placeholder="Hentes automatisk fra AD..." readonly>
+                                    <small class="form-text text-muted">Udfyldes automatisk når brugernavn valideres</small>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="adminBemærkninger" class="form-label">
+                                        <i class="bi bi-chat-left-text"></i> Bemærkninger
+                                    </label>
+                                    <textarea class="form-control" name="bemærkninger" id="adminBemærkninger"
+                                              rows="2" placeholder="Valgfri bemærkninger..."></textarea>
+                                </div>
+
+                                <input type="hidden" name="aktiv" value="true" id="adminAktiv">
+
+                                <button type="submit" class="btn btn-success w-100" id="addAdminBtn" disabled>
+                                    <i class="bi bi-person-plus"></i> Tilføj Administrator
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Liste over Administratorer -->
+                <div class="col-lg-8">
+                    <div class="card">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0">
+                                <i class="bi bi-people-fill"></i> Alle Administratorer
+                                <span class="badge bg-light text-dark ms-2">@(Model.Administratorer?.Count ?? 0)</span>
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            @if (Model.Administratorer != null && Model.Administratorer.Any())
+                            {
+                                <div class="table-responsive">
+                                    <table class="table table-hover">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>Brugernavn</th>
+                                                <th>Fulde Navn</th>
+                                                <th>Status</th>
+                                                <th>Oprettet</th>
+                                                <th>Handlinger</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach (var admin in Model.Administratorer)
+                                            {
+                                                <tr class="@(!admin.Aktiv ? "table-secondary" : "")">
+                                                    <td>
+                                                        <div>
+                                                            <i class="bi bi-person"></i>
+                                                            <strong>@admin.Brugernavn</strong>
+                                                            @if (!string.IsNullOrEmpty(admin.Bemærkninger))
+                                                            {
+                                                                <br>
+                                                    
+                                                                <small class="text-muted" title="@admin.Bemærkninger">
+                                                                    <i class="bi bi-chat-left-text"></i> @admin.Bemærkninger
+                                                                </small>
+                                                            }
+                                                        </div>
+                                                    </td>
+                                                    <td>@(admin.FuldeNavn ?? "-")</td>
+                                                    <td>
+                                                        @if (admin.Aktiv)
+                                                        {
+                                                            <span class="badge bg-success">
+                                                                <i class="bi bi-check-circle"></i> Aktiv
+                                                            </span>
+                                                        }
+                                                        else
+                                                        {
+                                                            <span class="badge bg-secondary">
+                                                                <i class="bi bi-pause-circle"></i> Inaktiv
+                                                            </span>
+                                                        }
+                                                    </td>
+                                                    <td>
+                                                        <small>
+                                                            @admin.Oprettet.ToString("dd-MM-yyyy")<br>
+                                                            <span class="text-muted">af @admin.OprettetAf</span>
+                                                        </small>
+                                                    </td>
+                                                    <td>
+                                                        <div class="btn-group btn-group-sm">
+                                                            <button type="button" class="btn btn-outline-primary"
+                                                                    onclick="editAdministrator(@admin.Id, '@Html.Raw(admin.Brugernavn.Replace("'", "\\'"))', '@Html.Raw((admin.FuldeNavn ?? "").Replace("'", "\\'"))', @admin.Aktiv.ToString().ToLower(), '@Html.Raw((admin.Bemærkninger ?? "").Replace("'", "\\'"))')"
+                                                                    title="Rediger">
+                                                                <i class="bi bi-pencil"></i>
+                                                            </button>
+                                                            @{
+                                                                var activeAdminCount = Model.Administratorer.Count(a => a.Aktiv);
+                                                            }
+                                                            @if (!(admin.Aktiv && activeAdminCount <= 1))
+                                                            {
+                                                                <button type="button" class="btn btn-outline-danger"
+                                                                        onclick="deleteAdministrator(@admin.Id, '@Html.Raw(admin.Brugernavn.Replace("'", "\\'"))')"
+                                                                        title="Slet">
+                                                                    <i class="bi bi-trash"></i>
+                                                                </button>
+                                                            }
+                                                            else
+                                                            {
+                                                                <button type="button" class="btn btn-outline-secondary" disabled
+                                                                        title="Kan ikke slette sidste aktive administrator">
+                                                                    <i class="bi bi-shield-exclamation"></i>
+                                                                </button>
+                                                            }
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="text-center py-4">
+                                    <i class="bi bi-people display-4 text-muted"></i>
+                                    <h5 class="mt-3 text-muted">Ingen Administratorer</h5>
+                                    <p class="text-muted">Der er ikke oprettet nogen administratorer endnu.</p>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Alert område til beskeder -->
+<div id="alertArea">
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show">
+            @TempData["Success"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show">
+            @TempData["Error"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+</div>
+
+<!-- Tab Navigation -->
+<ul class="nav nav-tabs mb-4" id="adminTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="mass-change-tab" data-bs-toggle="tab" data-bs-target="#mass-change" type="button" role="tab">
+            <i class="bi bi-arrow-repeat"></i> Masseændre Afdelinger
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="master-afdelinger-tab" data-bs-toggle="tab" data-bs-target="#master-afdelinger" type="button" role="tab">
+            <i class="bi bi-building"></i> Administrer Afdelinger
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="add-afdeling-tab" data-bs-toggle="tab" data-bs-target="#add-afdeling" type="button" role="tab">
+            <i class="bi bi-plus-circle"></i> Tilføj Afdeling
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="admin-users-tab" data-bs-toggle="tab" data-bs-target="#admin-users" type="button" role="tab">
+            <i class="bi bi-people-fill"></i> Administratorer
+        </button>
+    </li>
+</ul>
+
+<!-- Tab Content -->
+<div class="tab-content" id="adminTabContent">
+
+    <!-- Masseændring Tab -->
+    <div class="tab-pane fade" id="mass-change" role="tabpanel">
+        <div class="card">
+            <div class="card-header bg-warning text-dark">
+                <h5 class="mb-0">
+                    <i class="bi bi-exclamation-triangle"></i> Masseændre Afdelingsnavn
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle"></i>
+                    <strong>Vigtigt:</strong> Denne funktion ændrer afdelingsnavnet på ALLE eksisterende registreringer.
+                    Handlingen kan ikke fortrydes, så vær sikker på dit valg.
+                </div>
+
+                <form id="massChangeForm">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="oldAfdelingName" class="form-label">
+                                    <i class="bi bi-building"></i> Nuværende Afdelingsnavn
+                                </label>
+                                <select class="form-select" id="oldAfdelingName" required>
+                                    <option value="">Vælg afdeling at ændre...</option>
+                                    @if (Model.UsedAfdelinger != null)
+                                    {
+                                        @foreach (var afdeling in Model.UsedAfdelinger)
+                                        {
+                                            <option value="@afdeling.Key">@afdeling.Key (@afdeling.Value registreringer)</option>
+                                        }
+                                    }
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="newAfdelingName" class="form-label">
+                                    <i class="bi bi-building-fill"></i> Nyt Afdelingsnavn
+                                </label>
+                                <input type="text" class="form-control" id="newAfdelingName" required
+                                       placeholder="Indtast nyt navn...">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-outline-primary" onclick="previewMassChange()">
+                            <i class="bi bi-eye"></i> Forhåndsvis Ændringer
+                        </button>
+                        <button type="button" class="btn btn-warning" onclick="confirmMassChange()" disabled id="executeMassChangeBtn">
+                            <i class="bi bi-arrow-repeat"></i> Udfør Masseændring
+                        </button>
+                    </div>
+                </form>
+
+                <!-- Preview område -->
+                <div id="massChangePreview" class="mt-4" style="display: none;">
+                    <div class="card border-primary">
+                        <div class="card-header bg-primary text-white">
+                            <h6 class="mb-0"><i class="bi bi-list-check"></i> Forhåndsvisning af Ændringer</h6>
+                        </div>
+                        <div class="card-body" id="previewContent">
+                            <!-- Preview content will be loaded here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Master Afdelinger Tab -->
+    <div class="tab-pane fade" id="master-afdelinger" role="tabpanel">
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0">
+                    <i class="bi bi-building"></i> Alle Master Afdelinger
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th>ID</th>
+                                <th>Navn</th>
+                                <th>Status</th>
+                                <th>Oprettet</th>
+                                <th>Opdateret</th>
+                                <th>Handlinger</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (Model.MasterAfdelinger != null)
+                            {
+                                @foreach (var afdeling in Model.MasterAfdelinger)
+                                {
+                                    <tr>
+                                        <td class="fw-bold text-primary">@afdeling.Id</td>
+                                        <td>
+                                            <span class="fw-bold">@afdeling.Navn</span>
+                                        </td>
+                                        <td>
+                                            @if (afdeling.Aktiv)
+                                            {
+                                                <span class="badge bg-success">Aktiv</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-secondary">Inaktiv</span>
+                                            }
+                                        </td>
+                                        <td>
+                                            <small>
+                                                @afdeling.Oprettet.ToString("dd-MM-yyyy")<br>
+                                                <span class="text-muted">af @afdeling.OprettetAf</span>
+                                            </small>
+                                        </td>
+                                        <td>
+                                            @if (afdeling.Opdateret.HasValue)
+                                            {
+                                                <small>
+                                                    @afdeling.Opdateret.Value.ToString("dd-MM-yyyy")<br>
+                                                    <span class="text-muted">af @afdeling.OpdateretAf</span>
+                                                </small>
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted">-</span>
+                                            }
+                                        </td>
+                                        <td>
+                                            <div class="btn-group btn-group-sm">
+                                                <button type="button" class="btn btn-outline-primary"
+                                                        onclick="editMasterAfdeling(@afdeling.Id, '@Html.Raw(afdeling.Navn.Replace("'", "\\'"))', @afdeling.Aktiv.ToString().ToLower())">
+                                                    <i class="bi bi-pencil"></i>
+                                                </button>
+                                                <button type="button" class="btn btn-outline-danger"
+                                                        onclick="deleteMasterAfdeling(@afdeling.Id, '@Html.Raw(afdeling.Navn.Replace("'", "\\'"))')">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tilføj Afdeling Tab -->
+    <div class="tab-pane fade" id="add-afdeling" role="tabpanel">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">
+                    <i class="bi bi-plus-circle"></i> Tilføj Ny Afdeling
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="post" asp-page-handler="AddAfdeling">
+                    <div class="mb-3">
+                        <label for="newAfdelingNavn" class="form-label">
+                            <i class="bi bi-building"></i> Afdelingsnavn
+                        </label>
+                        <input type="text" class="form-control" name="navn" id="newAfdelingNavn"
+                               required maxlength="100" placeholder="Indtast navn på ny afdeling...">
+                        <div class="form-text">Maksimalt 100 karakterer</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="aktiv" id="newAfdelingAktiv" checked>
+                            <label class="form-check-label" for="newAfdelingAktiv">
+                                Afdeling er aktiv (anbefalet)
+                            </label>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-save"></i> Opret Afdeling
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Administrator Modal -->
+<div class="modal fade" id="editAdministratorModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-person-gear"></i> Rediger Administrator
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" asp-page-handler="EditAdministrator">
+                <div class="modal-body">
+                    <input type="hidden" name="id" id="editAdminId">
+
+                    <div class="mb-3">
+                        <label for="editAdminBrugernavn" class="form-label">
+                            <i class="bi bi-person"></i> Brugernavn *
+                        </label>
+                        <input type="text" class="form-control" name="brugernavn" id="editAdminBrugernavn" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="editAdminFuldeNavn" class="form-label">
+                            <i class="bi bi-person-badge"></i> Fulde Navn
+                        </label>
+                        <input type="text" class="form-control" name="fuldeNavn" id="editAdminFuldeNavn">
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="editAdminBemærkninger" class="form-label">
+                            <i class="bi bi-chat-left-text"></i> Bemærkninger
+                        </label>
+                        <textarea class="form-control" name="bemærkninger" id="editAdminBemærkninger" rows="2"></textarea>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="editAdminAktiv" class="form-label">
+                            <i class="bi bi-toggle-on"></i> Status
+                        </label>
+                        <select class="form-select" name="aktiv" id="editAdminAktiv">
+                            <option value="true">Aktiv</option>
+                            <option value="false">Inaktiv</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="bi bi-x-circle"></i> Annuller
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-check-circle"></i> Gem Ændringer
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Master Afdeling Modal -->
+<div class="modal fade" id="editMasterAfdelingModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-pencil-square"></i> Rediger Afdeling
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" asp-page-handler="EditAfdeling">
+                <div class="modal-body">
+                    <input type="hidden" name="id" id="editAfdelingId">
+
+                    <div class="mb-3">
+                        <label for="editAfdelingNavn" class="form-label">
+                            <i class="bi bi-building"></i> Afdelingsnavn
+                        </label>
+                        <input type="text" class="form-control" name="navn" id="editAfdelingNavn"
+                               required maxlength="100">
+                    </div>
+
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="aktiv" id="editAfdelingAktiv">
+                            <label class="form-check-label" for="editAfdelingAktiv">
+                                Afdeling er aktiv
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="bi bi-x-circle"></i> Annuller
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-check-circle"></i> Gem Ændringer
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Mass Change Confirmation Modal -->
+<div class="modal fade" id="massChangeConfirmModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-dark">
+                <h5 class="modal-title">
+                    <i class="bi bi-exclamation-triangle"></i> Bekræft Masseændring
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-danger">
+                    <i class="bi bi-exclamation-triangle-fill"></i>
+                    <strong>ADVARSEL:</strong> Denne handling kan IKKE fortrydes!
+                </div>
+
+                <div id="massChangeConfirmContent">
+                    <!-- Confirmation content will be loaded here -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="bi bi-x-circle"></i> Annuller
+                </button>
+                <button type="button" class="btn btn-danger" onclick="executeMassChange()">
+                    <i class="bi bi-check-circle"></i> Ja, Udfør Ændringen
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Global variables for mass change
+        let massChangeData = null;
+
+        function previewMassChange() {
+            const oldName = document.getElementById('oldAfdelingName').value;
+            const newName = document.getElementById('newAfdelingName').value;
+
+            if (!oldName || !newName) {
+                showAlert('Udfyld venligst både gammelt og nyt afdelingsnavn.', 'warning');
+                return;
+            }
+
+            if (oldName === newName) {
+                showAlert('Det gamle og nye navn kan ikke være ens.', 'warning');
+                return;
+            }
+
+            // API call to get preview
+            fetch('/Admin?handler=PreviewMassChange', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value || ''
+                },
+                body: JSON.stringify({
+                    oldName: oldName,
+                    newName: newName
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    massChangeData = data;
+                    displayPreview(data);
+                    document.getElementById('executeMassChangeBtn').disabled = false;
+                } else {
+                    showAlert(data.message || 'Fejl ved forhåndsvisning.', 'danger');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showAlert('Der opstod en fejl ved forhåndsvisning.', 'danger');
+            });
+        }
+
+        function displayPreview(data) {
+            const previewArea = document.getElementById('massChangePreview');
+            const previewContent = document.getElementById('previewContent');
+
+            let html = `
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6><i class="bi bi-info-circle"></i> Ændringer der vil blive udført:</h6>
+                        <ul class="list-group list-group-flush">
+                            <li class="list-group-item">
+                                <strong>Gammelt navn:</strong> <span class="text-danger">${data.oldName}</span>
+                            </li>
+                            <li class="list-group-item">
+                                <strong>Nyt navn:</strong> <span class="text-success">${data.newName}</span>
+                            </li>
+                            <li class="list-group-item">
+                                <strong>Antal registreringer:</strong> <span class="badge bg-primary">${data.affectedCount}</span>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <h6><i class="bi bi-people"></i> Påvirkede medarbejdere:</h6>
+                        <div class="bg-light p-3 rounded" style="max-height: 200px; overflow-y: auto;">
+            `;
+
+            if (data.affectedUsers && data.affectedUsers.length > 0) {
+                data.affectedUsers.forEach(user => {
+                    html += `<div class="mb-1">
+                        <i class="bi bi-person"></i> ${user.name}
+                        <span class="badge bg-secondary">${user.count} registreringer</span>
+                    </div>`;
+                });
+            } else {
+                html += '<em class="text-muted">Ingen medarbejdere påvirket</em>';
+            }
+
+            html += `
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            previewContent.innerHTML = html;
+            previewArea.style.display = 'block';
+        }
+
+        function confirmMassChange() {
+            if (!massChangeData) {
+                showAlert('Forhåndsvis ændringerne først.', 'warning');
+                return;
+            }
+
+            const confirmContent = document.getElementById('massChangeConfirmContent');
+            confirmContent.innerHTML = `
+                <p><strong>Du er ved at ændre følgende:</strong></p>
+                <ul>
+                    <li><strong>Fra:</strong> <span class="text-danger">${massChangeData.oldName}</span></li>
+                    <li><strong>Til:</strong> <span class="text-success">${massChangeData.newName}</span></li>
+                    <li><strong>Antal registreringer:</strong> ${massChangeData.affectedCount}</li>
+                    <li><strong>Antal medarbejdere:</strong> ${massChangeData.affectedUsers ? massChangeData.affectedUsers.length : 0}</li>
+                </ul>
+                <p class="text-danger"><strong>Denne handling kan IKKE fortrydes!</strong></p>
+            `;
+
+            const modal = new bootstrap.Modal(document.getElementById('massChangeConfirmModal'));
+            modal.show();
+        }
+
+        function executeMassChange() {
+            if (!massChangeData) return;
+
+            fetch('/Admin?handler=ExecuteMassChange', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value || ''
+                },
+                body: JSON.stringify({
+                    oldName: massChangeData.oldName,
+                    newName: massChangeData.newName
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showAlert(`Masseændring udført! ${data.changedCount} registreringer blev opdateret.`, 'success');
+
+                    // Reset form and hide preview
+                    document.getElementById('massChangeForm').reset();
+                    document.getElementById('massChangePreview').style.display = 'none';
+                    document.getElementById('executeMassChangeBtn').disabled = true;
+                    massChangeData = null;
+
+                    // Close modal
+                    bootstrap.Modal.getInstance(document.getElementById('massChangeConfirmModal')).hide();
+
+                    // Reload page to refresh data
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 2000);
+                } else {
+                    showAlert(data.message || 'Fejl ved udførelse af masseændring.', 'danger');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showAlert('Der opstod en fejl ved udførelse af masseændringen.', 'danger');
+            });
+        }
+
+        // User lookup functionality
+        async function lookupUser(username) {
+            const resultDiv = document.getElementById('userLookupResult');
+            const fuldeNavnInput = document.getElementById('adminFuldeNavn');
+            const addButton = document.getElementById('addAdminBtn');
+
+            if (!username || username.trim() === '') {
+                resultDiv.innerHTML = '';
+                fuldeNavnInput.value = '';
+                addButton.disabled = true;
+                return;
+            }
+
+            // Show loading
+            resultDiv.innerHTML = '<div class="text-info"><i class="bi bi-hourglass-split"></i> Slår bruger op...</div>';
+            fuldeNavnInput.value = 'Slår op...';
+            addButton.disabled = true;
+
+            try {
+                const response = await fetch('/Admin?handler=LookupUser', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value || ''
+                    },
+                    body: JSON.stringify({ username: username })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    resultDiv.innerHTML = `<div class="text-success"><i class="bi bi-check-circle"></i> Bruger fundet: ${data.displayName}</div>`;
+                    fuldeNavnInput.value = data.displayName;
+                    addButton.disabled = false;
+                } else {
+                    resultDiv.innerHTML = `<div class="text-danger"><i class="bi bi-exclamation-triangle"></i> ${data.message}</div>`;
+                    fuldeNavnInput.value = '';
+                    addButton.disabled = true;
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                resultDiv.innerHTML = '<div class="text-danger"><i class="bi bi-x-circle"></i> Fejl ved opslag af bruger</div>';
+                fuldeNavnInput.value = '';
+                addButton.disabled = true;
+            }
+        }
+
+        function editAdministrator(id, brugernavn, fuldeNavn, aktiv, bemærkninger) {
+            document.getElementById('editAdminId').value = id;
+            document.getElementById('editAdminBrugernavn').value = brugernavn;
+            document.getElementById('editAdminFuldeNavn').value = fuldeNavn;
+            document.getElementById('editAdminAktiv').value = aktiv.toString();
+            document.getElementById('editAdminBemærkninger').value = bemærkninger;
+
+            const modal = new bootstrap.Modal(document.getElementById('editAdministratorModal'));
+            modal.show();
+        }
+
+        function deleteAdministrator(id, brugernavn) {
+            if (confirm(`Er du sikker på at du vil slette administratoren "${brugernavn}"?\n\nDenne handling kan ikke fortrydes.`)) {
+                fetch('/Admin?handler=DeleteAdministrator', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value || ''
+                    },
+                    body: JSON.stringify({ id: id })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showAlert(`Administratoren "${brugernavn}" blev slettet.`, 'success');
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 1500);
+                    } else {
+                        showAlert(data.message || 'Kunne ikke slette administratoren.', 'danger');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showAlert('Der opstod en fejl ved sletning af administratoren.', 'danger');
+                });
+            }
+        }
+
+        function editMasterAfdeling(id, navn, aktiv) {
+            document.getElementById('editAfdelingId').value = id;
+            document.getElementById('editAfdelingNavn').value = navn;
+            document.getElementById('editAfdelingAktiv').checked = aktiv;
+
+            const modal = new bootstrap.Modal(document.getElementById('editMasterAfdelingModal'));
+            modal.show();
+        }
+
+        function deleteMasterAfdeling(id, navn) {
+            if (confirm(`Er du sikker på at du vil slette afdelingen "${navn}"?\n\nDette er kun muligt hvis der ikke er nogen aktive registreringer på denne afdeling.`)) {
+                fetch('/Admin?handler=DeleteAfdeling', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value || ''
+                    },
+                    body: JSON.stringify({ id: id })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showAlert(`Afdelingen "${navn}" blev slettet.`, 'success');
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 1500);
+                    } else {
+                        showAlert(data.message || 'Kunne ikke slette afdelingen.', 'danger');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showAlert('Der opstod en fejl ved sletning af afdelingen.', 'danger');
+                });
+            }
+        }
+
+        function showAlert(message, type) {
+            const alertArea = document.getElementById('alertArea');
+            const alertId = 'alert-' + Date.now();
+
+            const alertHtml = `
+                <div class="alert alert-${type} alert-dismissible fade show" id="${alertId}">
+                    ${message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            `;
+
+            alertArea.innerHTML = alertHtml;
+
+            // Auto-remove alert after 5 seconds
+            setTimeout(() => {
+                const alertElement = document.getElementById(alertId);
+                if (alertElement) {
+                    const alert = bootstrap.Alert.getOrCreateInstance(alertElement);
+                    alert.close();
+                }
+            }, 5000);
+        }
+
+        // Get CSRF token for forms
+        document.addEventListener('DOMContentLoaded', function() {
+            const forms = document.querySelectorAll('form[method="post"]');
+            forms.forEach(form => {
+                if (!form.querySelector('input[name="__RequestVerificationToken"]')) {
+                    const csrfInput = document.createElement('input');
+                    csrfInput.type = 'hidden';
+                    csrfInput.name = '__RequestVerificationToken';
+                    csrfInput.value = document.querySelector('input[name="__RequestVerificationToken"]')?.value || '';
+                    form.appendChild(csrfInput);
+                }
+            });
+        });
+    </script>
+}

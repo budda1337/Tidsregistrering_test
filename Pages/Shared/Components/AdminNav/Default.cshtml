@@ -1,0 +1,10 @@
+﻿@model Tidsregistrering.ViewComponents.AdminNavViewModel
+
+@if (Model.IsAdmin)
+{
+    <li class="nav-item">
+        <a class="nav-link @(Model.IsCurrentPage ? "active text-white bg-primary" : "text-dark")" asp-area="" asp-page="/Admin">
+            <i class="bi bi-gear-fill"></i> Administration
+        </a>
+    </li>
+}

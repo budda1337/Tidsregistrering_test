@@ -1,0 +1,324 @@
+﻿@page
+@model StatistikModel
+@{
+    ViewData["Title"] = "Organisationsstatistik - Tidsregistrering";
+}
+
+<div class="row">
+    <div class="col-12">
+        <h2><i class="bi bi-graph-up"></i> Organisationsstatistik</h2>
+        <p class="text-muted">Oversigt over tidsregistreringer på tværs af organisationen</p>
+    </div>
+</div>
+
+<!-- Filtrering -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">
+                    <i class="bi bi-funnel"></i> Filtrer Data
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="get" class="row g-3">
+                    <!-- Dato filtre -->
+                    <div class="col-md-2">
+                        <label asp-for="FraDato" class="form-label">Fra Dato</label>
+                        <input asp-for="FraDato" class="form-control" type="date" />
+                    </div>
+                    <div class="col-md-2">
+                        <label asp-for="TilDato" class="form-label">Til Dato</label>
+                        <input asp-for="TilDato" class="form-control" type="date" />
+                    </div>
+
+                    <!-- Afdeling filtre -->
+                    <div class="col-md-2">
+                        <label asp-for="ValgtAfdeling" class="form-label">Arbejde udført for</label>
+                        <select asp-for="ValgtAfdeling" class="form-select">
+                            <option value="">Alle afdelinger</option>
+                            @foreach (var afdeling in Model.Afdelinger)
+                            {
+                                <option value="@afdeling">@afdeling</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label asp-for="ValgtOuAfdeling" class="form-label">Arbejde Udført af</label>
+                        <select asp-for="ValgtOuAfdeling" class="form-select">
+                            <option value="">Alle OU afdelinger</option>
+                            @foreach (var ouAfdeling in Model.OuAfdelinger)
+                            {
+                                <option value="@ouAfdeling">@ouAfdeling</option>
+                            }
+                        </select>
+                    </div>
+
+                    <!-- Sagsnummer filter -->
+                    <div class="col-md-2">
+                        <label asp-for="ValgtSagsnummer" class="form-label">Sagsnummer</label>
+                        <input asp-for="ValgtSagsnummer" class="form-control" type="text"
+                               placeholder="Søg i sagsnummer..." />
+                    </div>
+
+                    <div class="col-md-2">
+                        <label class="form-label">&nbsp;</label>
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-search"></i> Søg
+                            </button>
+                        </div>
+                    </div>
+                </form>
+
+                @if (Model.FraDato.HasValue || Model.TilDato.HasValue || !string.IsNullOrEmpty(Model.ValgtAfdeling) || !string.IsNullOrEmpty(Model.ValgtOuAfdeling) || !string.IsNullOrEmpty(Model.ValgtSagsnummer))
+                {
+                    <div class="mt-3">
+                        <a href="/Statistik" class="btn btn-outline-secondary btn-sm">
+                            <i class="bi bi-arrow-clockwise"></i> Nulstil Filtre
+                        </a>
+                        <span class="text-muted ms-3">
+                            <strong>Aktive filtre:</strong>
+                            @if (Model.FraDato.HasValue)
+                            {
+                                <span class="badge bg-secondary me-1">Fra: @Model.FraDato.Value.ToString("dd-MM-yyyy")</span>
+                            }
+                            @if (Model.TilDato.HasValue)
+                            {
+                                <span class="badge bg-secondary me-1">Til: @Model.TilDato.Value.ToString("dd-MM-yyyy")</span>
+                            }
+                            @if (!string.IsNullOrEmpty(Model.ValgtAfdeling))
+                            {
+                                <span class="badge bg-secondary me-1">Udført for: @Model.ValgtAfdeling</span>
+                            }
+                            @if (!string.IsNullOrEmpty(Model.ValgtOuAfdeling))
+                            {
+                                <span class="badge bg-secondary me-1">Udført af: @Model.ValgtOuAfdeling</span>
+                            }
+                            @if (!string.IsNullOrEmpty(Model.ValgtSagsnummer))
+                            {
+                                <span class="badge bg-secondary me-1">Sagsnr: @Model.ValgtSagsnummer</span>
+                            }
+                        </span>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (Model.TotalRegistreringer > 0)
+{
+    <!-- Overordnede nøgletal -->
+    <div class="row mb-4">
+        <div class="col-md-6 mb-3">
+            <div class="card border-primary">
+                <div class="card-body text-center">
+                    <i class="bi bi-clipboard-data display-4 text-primary"></i>
+                    <h3 class="mt-2 text-primary">@Model.TotalRegistreringer.ToString("N0")</h3>
+                    <p class="mb-0 text-muted">Total Registreringer</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6 mb-3">
+            <div class="card border-success">
+                <div class="card-body text-center">
+                    <i class="bi bi-hourglass-split display-4 text-success"></i>
+                    <h3 class="mt-2 text-success">@Model.TotalTimerDecimal</h3>
+                    <p class="mb-0 text-muted">Total Timer Registreret</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <!-- Timefordeling per Afdeling -->
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-pie-chart"></i> Timefordeling pr. Afdeling
+                    </h5>
+                </div>
+                <div class="card-body">
+                    @if (Model.AfdelingStats.Any())
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-striped">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Afdeling</th>
+                                        <th class="text-end">Timer</th>
+                                        <th class="text-end">Registreringer</th>
+                                        <th class="text-end">Medarbejdere</th>
+                                        <th class="text-end">Andel</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var afdeling in Model.AfdelingStats)
+                                    {
+                                        <tr>
+                                            <td>
+                                                <strong>@afdeling.Key</strong>
+                                            </td>
+                                            <td class="text-end">
+                                                <span class="fw-bold">@afdeling.Value.Timer</span>
+                                                <small class="text-muted">t @afdeling.Value.Minutter m</small>
+                                            </td>
+                                            <td class="text-end">
+                                                <span class="badge bg-primary">@afdeling.Value.Antal</span>
+                                            </td>
+                                            <td class="text-end">
+                                                <span class="badge bg-info">@afdeling.Value.AntalBrugere</span>
+                                            </td>
+                                            <td class="text-end">
+                                                <span class="text-muted">@afdeling.Value.Procent%</span>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                    else
+                    {
+                        <p class="text-muted">Ingen afdelingsdata at vise</p>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- Medarbejder Aktivitet -->
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-person-lines-fill"></i> Medarbejder Aktivitet (top 10)
+                    </h5>
+                </div>
+                <div class="card-body">
+                    @if (Model.TopBrugere.Any())
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Medarbejder</th>
+                                        <th class="text-end">Timer</th>
+                                        <th class="text-end">Reg.</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var bruger in Model.TopBrugere.Take(15))
+                                    {
+                                        <tr>
+                                            <td>
+                                                <div>
+                                                    <strong>@bruger.FuldeNavn</strong>
+                                                    <br><small class="text-muted">@bruger.Brugernavn.Split('\\').LastOrDefault()</small>
+                                                </div>
+                                            </td>
+                                            <td class="text-end">
+                                                <strong>@bruger.Timer</strong>
+                                                <small class="text-muted">t</small>
+                                            </td>
+                                            <td class="text-end">
+                                                <span class="badge bg-secondary">@bruger.AntalRegistreringer</span>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="mt-3 text-center">
+                            <small class="text-muted">
+                                <i class="bi bi-info-circle"></i>
+                                Viser medarbejdere med registreringer i valgte periode
+                            </small>
+                        </div>
+                    }
+                    else
+                    {
+                        <p class="text-muted">Ingen medarbejderdata at vise</p>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Første og seneste registrering -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="mb-0">
+                        <i class="bi bi-calendar-range"></i> Dataperiode
+                    </h5>
+                </div>
+                <div class="card-body">
+                    @if (Model.FørsteRegistrering.HasValue && Model.SenesteRegistrering.HasValue)
+                    {
+                        <div class="row">
+                            <div class="col-md-4">
+                                <h6 class="text-muted">Første Registrering</h6>
+                                <p class="mb-3"><strong>@Model.FørsteRegistrering.Value.ToString("dd-MM-yyyy HH:mm")</strong></p>
+                            </div>
+                            <div class="col-md-4">
+                                <h6 class="text-muted">Seneste Registrering</h6>
+                                <p class="mb-3"><strong>@Model.SenesteRegistrering.Value.ToString("dd-MM-yyyy HH:mm")</strong></p>
+                            </div>
+                            <div class="col-md-4">
+                                <h6 class="text-muted">Analyseperiode</h6>
+                                @{
+                                    var dage = (Model.SenesteRegistrering.Value - Model.FørsteRegistrering.Value).Days + 1;
+                                }
+                                <p class="mb-3"><strong>@dage dage</strong> med registreringer</p>
+                            </div>
+                        </div>
+                        <div class="text-center mt-3">
+                            <a href="/" class="btn btn-primary me-2">
+                                <i class="bi bi-plus-circle"></i> Ny Registrering
+                            </a>
+                            <a href="/Registreringer" class="btn btn-outline-primary">
+                                <i class="bi bi-person-workspace"></i> Mine Registreringer
+                            </a>
+                        </div>
+                    }
+                    else
+                    {
+                        <p class="text-muted text-center">Ingen periode data tilgængelig</p>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+}
+else
+{
+    <!-- Ingen data -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body text-center py-5">
+                    <i class="bi bi-graph-down display-1 text-muted"></i>
+                    <h3 class="mt-3">Ingen Data Fundet</h3>
+                    @if (Model.FraDato.HasValue || Model.TilDato.HasValue || !string.IsNullOrEmpty(Model.ValgtAfdeling) || !string.IsNullOrEmpty(Model.ValgtOuAfdeling) || !string.IsNullOrEmpty(Model.ValgtSagsnummer))
+                    {
+                        <p class="text-muted">Der blev ikke fundet registreringer med de valgte filtre.</p>
+                        <a href="/Statistik" class="btn btn-primary">
+                            <i class="bi bi-arrow-clockwise"></i> Vis Alle Data
+                        </a>
+                    }
+                    else
+                    {
+                        <p class="text-muted">Der er endnu ikke registreret tidsdata i systemet.</p>
+                        <a href="/" class="btn btn-primary btn-lg">
+                            <i class="bi bi-plus-circle"></i> Start Første Registrering
+                        </a>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+}
